@@ -1,0 +1,53 @@
+# Python bytecode / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Secrets & real user configs (도구가 만드는 실제 설정은 절대 커밋 금지)
+aws_user_config.json
+awsUserConfig.json
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Local scratch
+*.log
+output.ini

@@ -1,0 +1,5 @@
+boto3==1.43.74
+pyotp==2.9.0
+python-dateutil==2.9.0.post0
+cplogger==0.1.0
+termcolor==3.3.0

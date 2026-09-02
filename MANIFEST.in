@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include requirements.txt
+include aws_user_config_sample.json
+recursive-exclude tests *
+global-exclude __pycache__
+global-exclude *.py[cod]

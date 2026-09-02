@@ -1,0 +1,8 @@
+{
+    "dev": {
+        "account_id": "",
+        "profile": "dev",
+        "mfa_serial": "",
+        "totp_secret": ""
+    },
+}
