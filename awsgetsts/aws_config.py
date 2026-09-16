@@ -15,6 +15,7 @@ from typing import Iterable, List, Optional
 
 from dateutil.tz import tzutc
 
+from .lang import L
 from .logger import log
 
 AWS_CONFIG_PATH = Path.home() / ".aws" / "config"
@@ -97,10 +98,16 @@ def existing_token_valid(
     kst = convert_to_kst(expiration)
     if current >= expiration:
         # 타임스탬프 없이 강조 / plain print for visibility
-        print(f"[{section}] 토큰 만료됨 (만료: {kst}) - 새 토큰 발급 필요")
+        print(f"[{section}] " + L(
+            f"토큰 만료됨 (만료: {kst}) - 새 토큰 발급 필요",
+            f"token expired (at {kst}) - refresh required",
+        ))
         return False
 
-    print(f"[{section}] 토큰 유효함 (만료 예정일: {kst})")
+    print(f"[{section}] " + L(
+        f"토큰 유효함 (만료: {kst})",
+        f"token valid (until {kst})",
+    ))
     return True
 
 

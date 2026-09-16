@@ -28,8 +28,36 @@ REQUIRED_FIELDS = ("account_id", "profile", "mfa_serial", "totp_secret")
 # 정규 경로 / Canonical default
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "getAwsSTS" / "awsUserConfig.json"
 
+# 사용자 개인 설정(비-프로필) 저장 위치 / User preferences (non-profile) file
+PREFERENCES_PATH = Path.home() / ".config" / "getAwsSTS" / "preferences.json"
+
 # 기존 사용자 호환을 위한 legacy 파일명 / Legacy filename for backward compat
 LEGACY_FILENAME = "aws_user_config.json"
+
+
+def load_preferences(path: Path = PREFERENCES_PATH) -> dict:
+    """사용자 개인 설정 로드 / Load persisted user preferences."""
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_preference(key: str, value, path: Path = PREFERENCES_PATH) -> None:
+    """단일 설정 항목 저장 / Persist a single preference key."""
+    prefs = load_preferences(path)
+    prefs[key] = value
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(prefs, f, indent=2, ensure_ascii=False)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
 
 
 def _script_dir_legacy() -> Optional[Path]:

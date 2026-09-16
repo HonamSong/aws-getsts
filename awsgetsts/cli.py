@@ -23,11 +23,19 @@ from .aws_config import (
     token_info,
     write_sts_sections,
 )
-from .config import ProfileConfig, load_config, resolve_config_path
+from .config import (
+    PREFERENCES_PATH,
+    ProfileConfig,
+    load_config,
+    load_preferences,
+    resolve_config_path,
+    save_preference,
+)
 from .lang import L, arrow, c_bad, c_dim, c_err, c_ok, c_prompt, c_warn, hrule_light
 from .logger import log, set_level
 from .setup import run_edit, run_wizard
 from .sts import DEFAULT_DURATION, MIN_DURATION, StsCredentials, get_session_token
+from .updates import check_for_update
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -164,20 +172,30 @@ def _print_ini(
 
 
 def _resolve_cli_pager(flag: Optional[bool]) -> bool:
-    """--cli-pager/--no-cli-pager 우선, 아니면 프롬프트 / Flag first, then prompt.
-
-    비-TTY 환경(파이프/스크립트)에서는 프롬프트 없이 True 로 폴백.
-    In non-TTY environments, default to True without prompting.
+    """--cli-pager/--no-cli-pager 우선, 저장된 응답, 프롬프트 순으로 결정.
+    Flag > saved preference > prompt. Non-TTY defaults to True.
     """
     if flag is not None:
         return flag
+    prefs = load_preferences()
+    saved = prefs.get("add_cli_pager")
+    if isinstance(saved, bool):
+        return saved
     if not sys.stdin.isatty():
         return True
     ans = input(f"  {arrow()} " + c_prompt(L(
         "각 sts 프로필에 `cli_pager =` 를 추가할까요? [Y/n]: ",
         "add `cli_pager =` to each sts profile? [Y/n]: ",
     ))).strip().lower()
-    return ans in ("", "y", "yes")
+    result = ans in ("", "y", "yes")
+    save_preference("add_cli_pager", result)
+    log.info(L(
+        f"응답 저장됨 → 다음부터 묻지 않음 ({PREFERENCES_PATH}). "
+        "재질문하려면 파일 삭제 또는 --cli-pager/--no-cli-pager 사용",
+        f"saved → won't ask again ({PREFERENCES_PATH}). "
+        "delete the file or pass --cli-pager/--no-cli-pager to override",
+    ))
+    return result
 
 
 def process_profile(
@@ -192,14 +210,17 @@ def process_profile(
     ``"refreshed"``, ``"valid"``, ``"missing"``.
     """
     if not profile_exists(name):
-        log.warn(
-            f"[{name}] AWS 프로필 미설정, 건너뜀 / not configured, skipping. "
-            f"설정: aws configure --profile {name}"
-        )
+        log.warn(L(
+            f"[{name}] AWS 프로필 미설정, 건너뜀. `aws configure --profile {name}` 로 등록",
+            f"[{name}] not configured, skipping. Run `aws configure --profile {name}`",
+        ))
         return "missing", None
 
     if not force and existing_token_valid(name):
-        log.info(f"[{name}] 기존 토큰 유효 - 갱신 생략 / valid token exists, skipping")
+        log.info(L(
+            f"[{name}] 기존 토큰 유효 - 갱신 생략",
+            f"[{name}] valid token exists, skipping",
+        ))
         return "valid", None
 
     creds = get_session_token(
@@ -208,13 +229,16 @@ def process_profile(
         totp_secret=cfg.totp_secret or None,
         duration=duration,
     )
-    log.info(f"[{name}] 새 토큰 발급 / new token issued (expires {creds.expiration_iso})")
+    log.info(L(
+        f"[{name}] 새 토큰 발급 (만료: {creds.expiration_iso})",
+        f"[{name}] new token issued (expires {creds.expiration_iso})",
+    ))
     return "refreshed", creds
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     try:
-        return _run(argv)
+        rc = _run(argv)
     except KeyboardInterrupt:
         print()
         print(L("취소됨 (Ctrl+C)", "aborted (Ctrl+C)"))
@@ -223,6 +247,25 @@ def main(argv: Optional[list[str]] = None) -> int:
         print()
         print(L("입력 종료 (EOF)", "aborted (EOF)"))
         return 130
+
+    try:
+        newer = check_for_update()
+        if newer:
+            print()
+            print(c_warn(L(
+                f"⚠  새 버전 사용 가능: {newer} (현재 {__version__})",
+                f"[!] new version available: {newer} (current {__version__})",
+            )))
+            print(c_dim(L(
+                "   업데이트: pip install -U awsgetsts   "
+                "(끄기: AWSGETSTS_NO_UPDATE_CHECK=1)",
+                "   update:  pip install -U awsgetsts   "
+                "(disable: AWSGETSTS_NO_UPDATE_CHECK=1)",
+            )))
+    except Exception:
+        pass
+
+    return rc
 
 
 def _run(argv: Optional[list[str]] = None) -> int:
